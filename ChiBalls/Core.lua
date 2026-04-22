@@ -11,7 +11,7 @@ anchorFrame:SetClampedToScreen(true)
 
 local spellID = 116645
 local bgAtlas = "uf-chi-bg"
-local iconAtlas = "uf-chi-icon"
+local iconTexture = "Interface\\AddOns\\OrtemisTools\\ChiBalls\\chi_texture"
 local iconX = 0
 local iconY = 5
 
@@ -34,7 +34,7 @@ for i = 1, maxStacks do
 	bar.icon:SetMinMaxValues(i - 1, i, Enum.StatusBarInterpolation.Immediate)
 	bar.icon:SetStatusBarTexture("")
 	local iconTex = bar.icon:GetStatusBarTexture()
-	iconTex:SetAtlas(iconAtlas)
+	iconTex:SetTexture(iconTexture)
 	bars[i] = bar
 end
 
@@ -144,7 +144,10 @@ local function updateLayout(self)
 	local y1 = 15
 	local y2 = y + y1
 
-	for i = 1, maxStacks do bars[i]:SetScale(scale) end
+	for i = 1, maxStacks do
+		bars[i]:SetScale(scale)
+		bars[i].icon:SetSize(self.db.iconSize, self.db.iconSize)
+	end
 	bars[ballPos[1]]:SetPoint("BOTTOM", -x2, y2)
 	bars[ballPos[2]]:SetPoint("BOTTOM", -x1, y1)
 	bars[ballPos[3]]:SetPoint("BOTTOM", x1, y1)
@@ -162,6 +165,7 @@ local function init(self)
 	if db.hideDefault == nil then db.hideDefault = true end
 	db.size = db.size or 28
 	db.gap = db.gap or -2
+	db.iconSize = db.iconSize or 32
 	db.yOffset14 = db.yOffset14 or 10
 	db.ballPos = db.ballPos or {}
 	db.ballPos[1] = db.ballPos[1] or 3
@@ -232,7 +236,7 @@ C_Timer.After(0, function()
 		{
 			name = "Size",
 			kind = lem.SettingType.Slider,
-			default = 28,
+			default = 32,
 			minValue = 4,
 			maxValue = 100,
 			valueStep = 1,
@@ -243,6 +247,21 @@ C_Timer.After(0, function()
 				anchorFrame.db.size = value
 				updateLayout(anchorFrame)
 			end,
+		},
+		{
+			name = "Icon Size",
+			kind = lem.SettingType.Slider,
+			default = 38,
+			minValue = 4,
+			maxValue = 50,
+			valueStep = 1,
+			get = function()
+				return anchorFrame.db.iconSize
+			end,
+			set = function(_, value)
+				anchorFrame.db.iconSize = value
+				updateLayout(anchorFrame)
+			end
 		},
 		{
 			name = "Gap",
