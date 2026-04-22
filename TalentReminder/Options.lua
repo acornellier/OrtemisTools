@@ -32,7 +32,7 @@ end)
 
 local cbDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 cbDesc:SetPoint("TOPLEFT", cbTitle, "BOTTOMLEFT", 0, -6)
-cbDesc:SetText("Displays Teachings of the Monastery stacks. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.")
+cbDesc:SetText("Displays Teachings of the Monastery stacks. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.\n\nThanks to sfmict for developing this module!")
 cbDesc:SetTextColor(0.7, 0.7, 0.7)
 cbDesc:SetWidth(500)
 cbDesc:SetJustifyH("LEFT")
