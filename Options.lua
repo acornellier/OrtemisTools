@@ -12,7 +12,7 @@ optionsFrame:Hide()
 -- Chi Balls section
 local cbTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 cbTitle:SetPoint("TOPLEFT", 16, -16)
-cbTitle:SetText("Chi Balls")
+cbTitle:SetText("Teachings of the Monastery")
 
 local chiballsEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
 chiballsEnabledCB:SetSize(24, 24)
@@ -36,9 +36,63 @@ cbDesc:SetTextColor(0.7, 0.7, 0.7)
 cbDesc:SetWidth(500)
 cbDesc:SetJustifyH("LEFT")
 
+-- Spiritfont section
+local sfTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+sfTitle:SetPoint("TOPLEFT", cbDesc, "BOTTOMLEFT", 0, -24)
+sfTitle:SetText("Spiritfont")
+
+local spiritfontEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
+spiritfontEnabledCB:SetSize(24, 24)
+spiritfontEnabledCB:SetPoint("LEFT", sfTitle, "RIGHT", 8, 0)
+spiritfontEnabledCB.text = spiritfontEnabledCB:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+spiritfontEnabledCB.text:SetPoint("LEFT", spiritfontEnabledCB, "RIGHT", 2, 0)
+spiritfontEnabledCB.text:SetText("Enabled")
+spiritfontEnabledCB:SetScript("OnShow", function(self)
+    self:SetChecked(not OrtemisToolsDB.spiritFont or OrtemisToolsDB.spiritFont.enabled ~= false)
+end)
+spiritfontEnabledCB:SetScript("OnClick", function(self)
+    OrtemisToolsDB.spiritFont = OrtemisToolsDB.spiritFont or {}
+    OrtemisToolsDB.spiritFont.enabled = self:GetChecked()
+    if ns.Spiritfont then ns.Spiritfont.refresh() end
+end)
+
+local sfDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sfDesc:SetPoint("TOPLEFT", sfTitle, "BOTTOMLEFT", 0, -6)
+sfDesc:SetText("Displays Spirit Font stacks. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.")
+sfDesc:SetTextColor(0.7, 0.7, 0.7)
+sfDesc:SetWidth(500)
+sfDesc:SetJustifyH("LEFT")
+
+-- Dance of Chi Ji section
+local dTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+dTitle:SetPoint("TOPLEFT", sfDesc, "BOTTOMLEFT", 0, -24)
+dTitle:SetText("Dance of Chi Ji")
+
+local danceEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
+danceEnabledCB:SetSize(24, 24)
+danceEnabledCB:SetPoint("LEFT", dTitle, "RIGHT", 8, 0)
+danceEnabledCB.text = danceEnabledCB:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+danceEnabledCB.text:SetPoint("LEFT", danceEnabledCB, "RIGHT", 2, 0)
+danceEnabledCB.text:SetText("Enabled")
+danceEnabledCB:SetScript("OnShow", function(self)
+    self:SetChecked(not OrtemisToolsDB.danceOfChiJi or OrtemisToolsDB.danceOfChiJi.enabled ~= false)
+end)
+danceEnabledCB:SetScript("OnClick", function(self)
+    OrtemisToolsDB.danceOfChiJi = OrtemisToolsDB.danceOfChiJi or {}
+    OrtemisToolsDB.danceOfChiJi.enabled = self:GetChecked()
+    if ns.DanceOfChiJi then ns.DanceOfChiJi.refresh() end
+end)
+
+local dDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+dDesc:SetPoint("TOPLEFT", dTitle, "BOTTOMLEFT", 0, -6)
+dDesc:SetText("Displays Dance of Chi Ji proc. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.")
+dDesc:SetTextColor(0.7, 0.7, 0.7)
+dDesc:SetWidth(500)
+dDesc:SetJustifyH("LEFT")
+
 -- Renewing Mist section
 local remTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-remTitle:SetPoint("TOPLEFT", cbDesc, "BOTTOMLEFT", 0, -24)
+remTitle:SetPoint("TOPLEFT", dDesc, "BOTTOMLEFT", 0, -24)
 remTitle:SetText("Renewing Mist")
 
 local remEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")

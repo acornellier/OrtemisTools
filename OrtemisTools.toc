@@ -14,6 +14,9 @@ Libs\LibEditMode\embed.xml
 SharedMedia.lua
 TalentReminder/Data.lua
 TalentReminder/Core.lua
+BallsAnchor/Core.lua
 ChiBalls/Core.lua
+Spiritfont/Core.lua
+DanceOfChiJi/Core.lua
 RenewingMist/Core.lua
 Options.lua

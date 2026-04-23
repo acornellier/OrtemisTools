@@ -3,46 +3,40 @@ local addonName, ns = ...
 if select(2, UnitClass("player")) ~= "MONK" then return end
 
 local CB = {}
-ns.ChiBalls = CB
+ns.DanceOfChiJi = CB
 
 local anchorFrame = CreateFrame("FRAME", nil, ns.ballsAnchor)
 anchorFrame:SetClampedToScreen(true)
 
-local spellID = 116645
+local spellID = 438439
 local bgAtlas = "uf-chi-bg"
-local iconTexture = "Interface\\AddOns\\OrtemisTools\\ChiBalls\\chi_texture"
+local iconTexture = "Interface\\AddOns\\OrtemisTools\\DanceOfChiJi\\spinny_texture"
 local iconX = 0
 local iconY = 5
 
 local dSize = 50
 local iconSize = 32
-local maxStacks = 4
-local bars, barFrame = {}
+local bar, barFrame
 local isEditing = false
 
-for i = 1, maxStacks do
-	local bar = CreateFrame("StatusBar", nil, anchorFrame)
-	bar:SetSize(dSize, dSize)
-	bar:SetMinMaxValues(i - 1, i, Enum.StatusBarInterpolation.Immediate)
-	bar:SetStatusBarTexture("")
-	local barTex = bar:GetStatusBarTexture()
-	barTex:SetAtlas(bgAtlas)
-	bar.icon = CreateFrame("StatusBar", nil, bar)
-	bar.icon:SetSize(iconSize, iconSize)
-	bar.icon:SetPoint("CENTER", iconX, iconY)
-	bar.icon:SetMinMaxValues(i - 1, i, Enum.StatusBarInterpolation.Immediate)
-	bar.icon:SetStatusBarTexture("")
-	local iconTex = bar.icon:GetStatusBarTexture()
-	iconTex:SetTexture(iconTexture)
-	bars[i] = bar
-end
+bar = CreateFrame("StatusBar", nil, anchorFrame)
+bar:SetSize(dSize, dSize)
+bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+bar:SetStatusBarTexture("")
+local barTex = bar:GetStatusBarTexture()
+barTex:SetAtlas(bgAtlas)
+bar.icon = CreateFrame("StatusBar", nil, bar)
+bar.icon:SetSize(iconSize, iconSize)
+bar.icon:SetPoint("CENTER", iconX, iconY)
+bar.icon:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+bar.icon:SetStatusBarTexture("")
+local iconTex = bar.icon:GetStatusBarTexture()
+iconTex:SetTexture(iconTexture)
 
 
 local function updateBars(stacks)
-	for i = 1, maxStacks do
-		bars[i]:SetValue(stacks)
-		bars[i].icon:SetValue(stacks)
-	end
+	bar:SetValue(stacks)
+	bar.icon:SetValue(stacks)
 end
 
 
@@ -58,14 +52,14 @@ end
 
 
 local function refreshHooks()
-	if OrtemisToolsDB.chiBalls.enabled == false then
-		for i = 1, maxStacks do bars[i]:Hide() end
+	if OrtemisToolsDB.danceOfChiJi.enabled == false then
+		bar:Hide()
 		return
 	end
 
 	if isEditing then
-		for i = 1, maxStacks do bars[i]:Show() end
-		updateBars(maxStacks)
+		bar:Show()
+		updateBars(1)
 		return
 	end
 
@@ -73,10 +67,10 @@ local function refreshHooks()
 	local cdID, applications = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
 
 	for f in BuffIconCooldownViewer.itemFramePool:EnumerateActive() do
-		if f._ChiBalls then
+		if f._DanceOfChiJi then
 			f.SetAlpha = nil
 			f.Applications.Applications.SetText = nil
-			f._ChiBalls = nil
+			f._DanceOfChiJi = nil
 			f:SetAlpha(1)
 		end
 		if f.cooldownID == cdID then
@@ -86,10 +80,10 @@ local function refreshHooks()
 	end
 
 	for f in BuffBarCooldownViewer.itemFramePool:EnumerateActive() do
-		if f._ChiBalls then
+		if f._DanceOfChiJi then
 			f.SetAlpha = nil
 			f.Icon.Applications.SetText = nil
-			f._ChiBalls = nil
+			f._DanceOfChiJi = nil
 			f:SetAlpha(1)
 		end
 		if f.cooldownID == cdID then
@@ -99,13 +93,11 @@ local function refreshHooks()
 	end
 
 	local show = barFrame and C_SpecializationInfo.GetSpecialization() == 2
-	for i, bar in ipairs(bars) do
-		bar:SetShown(show)
-	end
+	bar:SetShown(show)
 	if not show then return end
 
 	local alpha = anchorFrame.db.hideDefault and 0 or 1
-	barFrame._ChiBalls = true
+	barFrame._DanceOfChiJi = true
 	barFrame:SetAlpha(alpha)
 
 	local setAlpha = getmetatable(barFrame).__index.SetAlpha
@@ -132,30 +124,14 @@ CB.refresh = refreshHooks
 
 local function updateLayout(self)
 	local size = self.db.size
-	local gap = self.db.gap
-	local yOffset14 = self.db.yOffset14
-	local ballPos = self.db.ballPos
 	local scale = size / dSize
-	local x = (size + gap) / scale
-	local y = yOffset14 / scale
-	local x1 = x * .5
-	local x2 = (x > math.abs(y) and math.sqrt(x*x - y*y) or x) + x1
-	local y1 = 15
-	local y2 = y + y1
 
-	for i = 1, maxStacks do
-		bars[i]:SetScale(scale)
-		bars[i].icon:SetSize(self.db.iconSize, self.db.iconSize)
-	end
-	bars[ballPos[1]]:SetPoint("BOTTOM", -x2, y2)
-	bars[ballPos[2]]:SetPoint("BOTTOM", -x1, y1)
-	bars[ballPos[3]]:SetPoint("BOTTOM", x1, y1)
-	bars[ballPos[4]]:SetPoint("BOTTOM", x2, y2)
+	bar:SetScale(scale)
+	bar.icon:SetSize(self.db.iconSize, self.db.iconSize)
+	bar:ClearAllPoints()
+	bar:SetPoint("BOTTOM", 0, 15)
 
-	local w = (size + gap) * 4 - gap + 10
-	local h = size + 30
-	self:SetSize(w, h)
-	self:GetParent():SetSize(w, h)
+	self:SetSize(size + 10, size + 30)
 	self:ClearAllPoints()
 	self:SetPoint("CENTER", self.db.xOffset, self.db.yOffset)
 end
@@ -164,41 +140,15 @@ CB.updateLayout = function() updateLayout(anchorFrame) end
 
 
 local function init(self)
-	OrtemisToolsDB.chiBalls = OrtemisToolsDB.chiBalls or {}
-	if OrtemisToolsDB.chiBalls.enabled == nil then OrtemisToolsDB.chiBalls.enabled = true end
-	self.db = OrtemisToolsDB.chiBalls
+	OrtemisToolsDB.danceOfChiJi = OrtemisToolsDB.danceOfChiJi or {}
+	self.db = OrtemisToolsDB.danceOfChiJi
 	local db = self.db
 	if db.hideDefault == nil then db.hideDefault = true end
-	db.size = db.size or 32
-	db.gap = db.gap or -2
-	db.iconSize = db.iconSize or 36
-	db.yOffset14 = db.yOffset14 or 10
-	db.ballPos = db.ballPos or {}
-	db.ballPos[1] = db.ballPos[1] or 3
-	db.ballPos[2] = db.ballPos[2] or 1
-	db.ballPos[3] = db.ballPos[3] or 2
-	db.ballPos[4] = db.ballPos[4] or 4
+	db.size = db.size or 30
+	db.iconSize = db.iconSize or 32
 	db.xOffset = db.xOffset or 0
-	db.yOffset = db.yOffset or 0
+	db.yOffset = db.yOffset or 24
 end
-
-
-local function setBallPos(self, chi, pos)
-	local ballPos = self.db.ballPos
-	if ballPos[chi] == pos then return end
-
-	for i = 1, maxStacks do
-		if ballPos[i] == pos then
-			ballPos[i] = ballPos[chi]
-			ballPos[chi] = pos
-			break
-		end
-	end
-
-	updateLayout(anchorFrame)
-end
-
-CB.setBallPos = function(chi, pos) setBallPos(anchorFrame, chi, pos) end
 
 
 C_Timer.After(0, function()
@@ -215,8 +165,8 @@ C_Timer.After(0, function()
 
 	lem:RegisterCallback("enter", function()
 		isEditing = true
-		for i = 1, maxStacks do bars[i]:Show() end
-		updateBars(maxStacks)
+		bar:Show()
+		updateBars(1)
 	end)
 
 	lem:RegisterCallback("exit", function()

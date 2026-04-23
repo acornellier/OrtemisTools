@@ -3,20 +3,20 @@ local addonName, ns = ...
 if select(2, UnitClass("player")) ~= "MONK" then return end
 
 local CB = {}
-ns.ChiBalls = CB
+ns.Spiritfont = CB
 
 local anchorFrame = CreateFrame("FRAME", nil, ns.ballsAnchor)
 anchorFrame:SetClampedToScreen(true)
 
-local spellID = 116645
+local spellID = 1260511
 local bgAtlas = "uf-chi-bg"
-local iconTexture = "Interface\\AddOns\\OrtemisTools\\ChiBalls\\chi_texture"
+local iconTexture = "Interface\\AddOns\\OrtemisTools\\Spiritfont\\spirit_texture"
 local iconX = 0
 local iconY = 5
 
 local dSize = 50
 local iconSize = 32
-local maxStacks = 4
+local maxStacks = 2
 local bars, barFrame = {}
 local isEditing = false
 
@@ -58,7 +58,7 @@ end
 
 
 local function refreshHooks()
-	if OrtemisToolsDB.chiBalls.enabled == false then
+	if OrtemisToolsDB.spiritFont.enabled == false then
 		for i = 1, maxStacks do bars[i]:Hide() end
 		return
 	end
@@ -73,10 +73,10 @@ local function refreshHooks()
 	local cdID, applications = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
 
 	for f in BuffIconCooldownViewer.itemFramePool:EnumerateActive() do
-		if f._ChiBalls then
+		if f._Spiritfont then
 			f.SetAlpha = nil
 			f.Applications.Applications.SetText = nil
-			f._ChiBalls = nil
+			f._Spiritfont = nil
 			f:SetAlpha(1)
 		end
 		if f.cooldownID == cdID then
@@ -86,10 +86,10 @@ local function refreshHooks()
 	end
 
 	for f in BuffBarCooldownViewer.itemFramePool:EnumerateActive() do
-		if f._ChiBalls then
+		if f._Spiritfont then
 			f.SetAlpha = nil
 			f.Icon.Applications.SetText = nil
-			f._ChiBalls = nil
+			f._Spiritfont = nil
 			f:SetAlpha(1)
 		end
 		if f.cooldownID == cdID then
@@ -105,7 +105,7 @@ local function refreshHooks()
 	if not show then return end
 
 	local alpha = anchorFrame.db.hideDefault and 0 or 1
-	barFrame._ChiBalls = true
+	barFrame._Spiritfont = true
 	barFrame:SetAlpha(alpha)
 
 	local setAlpha = getmetatable(barFrame).__index.SetAlpha
@@ -133,64 +133,54 @@ CB.refresh = refreshHooks
 local function updateLayout(self)
 	local size = self.db.size
 	local gap = self.db.gap
-	local yOffset14 = self.db.yOffset14
 	local ballPos = self.db.ballPos
 	local scale = size / dSize
-	local x = (size + gap) / scale
-	local y = yOffset14 / scale
-	local x1 = x * .5
-	local x2 = (x > math.abs(y) and math.sqrt(x*x - y*y) or x) + x1
+	local x1 = (size + gap) / scale / 2
 	local y1 = 15
-	local y2 = y + y1
 
 	for i = 1, maxStacks do
 		bars[i]:SetScale(scale)
 		bars[i].icon:SetSize(self.db.iconSize, self.db.iconSize)
 	end
-	bars[ballPos[1]]:SetPoint("BOTTOM", -x2, y2)
-	bars[ballPos[2]]:SetPoint("BOTTOM", -x1, y1)
-	bars[ballPos[3]]:SetPoint("BOTTOM", x1, y1)
-	bars[ballPos[4]]:SetPoint("BOTTOM", x2, y2)
+	bars[ballPos[1]]:SetPoint("BOTTOM", -x1, y1)
+	bars[ballPos[2]]:SetPoint("BOTTOM", x1, y1)
 
-	local w = (size + gap) * 4 - gap + 10
-	local h = size + 30
-	self:SetSize(w, h)
-	self:GetParent():SetSize(w, h)
+	self:SetSize((size + gap) * 2 - gap + 10, size + 30)
 	self:ClearAllPoints()
 	self:SetPoint("CENTER", self.db.xOffset, self.db.yOffset)
 end
 
-CB.updateLayout = function() updateLayout(anchorFrame) end
-
 
 local function init(self)
-	OrtemisToolsDB.chiBalls = OrtemisToolsDB.chiBalls or {}
-	if OrtemisToolsDB.chiBalls.enabled == nil then OrtemisToolsDB.chiBalls.enabled = true end
-	self.db = OrtemisToolsDB.chiBalls
+	OrtemisToolsDB.spiritFont = OrtemisToolsDB.spiritFont or {}
+	self.db = OrtemisToolsDB.spiritFont
 	local db = self.db
 	if db.hideDefault == nil then db.hideDefault = true end
-	db.size = db.size or 32
-	db.gap = db.gap or -2
-	db.iconSize = db.iconSize or 36
-	db.yOffset14 = db.yOffset14 or 10
+	db.size = db.size or 28
+	db.gap = db.gap or 20
+	db.iconSize = db.iconSize or 32
 	db.ballPos = db.ballPos or {}
-	db.ballPos[1] = db.ballPos[1] or 3
-	db.ballPos[2] = db.ballPos[2] or 1
-	db.ballPos[3] = db.ballPos[3] or 2
-	db.ballPos[4] = db.ballPos[4] or 4
+	if not db.ballPos[1] or db.ballPos[1] > maxStacks or
+	   not db.ballPos[2] or db.ballPos[2] > maxStacks or
+	   db.ballPos[1] == db.ballPos[2] then
+		db.ballPos[1] = 1
+		db.ballPos[2] = 2
+	end
+	db.ballPos[3] = nil
+	db.ballPos[4] = nil
 	db.xOffset = db.xOffset or 0
-	db.yOffset = db.yOffset or 0
+	db.yOffset = db.yOffset or 27
 end
 
 
-local function setBallPos(self, chi, pos)
+local function setBallPos(self, spirit, pos)
 	local ballPos = self.db.ballPos
-	if ballPos[chi] == pos then return end
+	if ballPos[spirit] == pos then return end
 
 	for i = 1, maxStacks do
 		if ballPos[i] == pos then
-			ballPos[i] = ballPos[chi]
-			ballPos[chi] = pos
+			ballPos[i] = ballPos[spirit]
+			ballPos[spirit] = pos
 			break
 		end
 	end
@@ -198,7 +188,8 @@ local function setBallPos(self, chi, pos)
 	updateLayout(anchorFrame)
 end
 
-CB.setBallPos = function(chi, pos) setBallPos(anchorFrame, chi, pos) end
+CB.updateLayout = function() updateLayout(anchorFrame) end
+CB.setBallPos = function(spirit, pos) setBallPos(anchorFrame, spirit, pos) end
 
 
 C_Timer.After(0, function()
