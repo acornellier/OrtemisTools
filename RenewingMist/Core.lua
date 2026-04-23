@@ -51,6 +51,20 @@ local function syncCharges(chargeInfo)
 end
 
 
+local function shouldHideBars()
+	return not UnitExists("target")
+		and not UnitAffectingCombat("player")
+		and GetNumGroupMembers() == 0
+end
+
+local function updateVisibility()
+	local show = not shouldHideBars()
+	for i = 1, maxStacks do
+		bars[i]:SetShown(show)
+	end
+end
+
+
 local function updateBars()
 	local chargeInfo = C_Spell.GetSpellCharges(spellID)
 	if not chargeInfo then
@@ -133,16 +147,16 @@ local function refreshHooks()
 		return
 	end
 
-	local show = C_SpecializationInfo.GetSpecialization() == 2
-	for i = 1, maxStacks do
-		bars[i]:SetShown(show)
-	end
+	local isMistweaver = C_SpecializationInfo.GetSpecialization() == 2
 
-	if show then
+	if isMistweaver then
 		if eventFrame then
 			eventFrame:RegisterEvent("SPELL_UPDATE_CHARGES")
 			eventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 			eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+			eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+			eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+			eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 			eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 		end
 
@@ -157,7 +171,9 @@ local function refreshHooks()
 		end
 
 		updateBars()
+		updateVisibility()
 	else
+		for i = 1, maxStacks do bars[i]:Hide() end
 		if eventFrame then eventFrame:UnregisterAllEvents() end
 	end
 end
@@ -253,6 +269,7 @@ C_Timer.After(0, function()
 		end
 
 		updateBars()
+		updateVisibility()
 	end)
 
 	refreshHooks()
