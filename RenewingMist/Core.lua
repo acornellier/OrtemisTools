@@ -164,6 +164,8 @@ end
 
 
 local function init(self)
+	OrtemisToolsDB.renewingMist = OrtemisToolsDB.renewingMist or {}
+	if OrtemisToolsDB.renewingMist.enabled == nil then OrtemisToolsDB.renewingMist.enabled = true end
 	self.db = OrtemisToolsDB.renewingMist
 	local db = self.db
 	if db.hideDefault == nil then db.hideDefault = true end

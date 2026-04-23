@@ -160,6 +160,8 @@ end
 
 
 local function init(self)
+	OrtemisToolsDB.chiBalls = OrtemisToolsDB.chiBalls or {}
+	if OrtemisToolsDB.chiBalls.enabled == nil then OrtemisToolsDB.chiBalls.enabled = true end
 	self.db = OrtemisToolsDB.chiBalls
 	local db = self.db
 	if db.hideDefault == nil then db.hideDefault = true end

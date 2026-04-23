@@ -6,7 +6,6 @@ local ROW_HEIGHT = 30
 local HEADER_HEIGHT = 24
 local TALENT_LABEL_WIDTH = 140
 
--- Create the options panel
 local optionsFrame = CreateFrame("Frame", "OrtemisToolsOptionsFrame", UIParent)
 optionsFrame:Hide()
 
@@ -83,7 +82,6 @@ enableCB:SetScript("OnClick", function(self)
     TR:UpdateDisplay()
 end)
 
--- Grid container
 local grid = CreateFrame("Frame", nil, optionsFrame)
 grid:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
 grid:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -16, 16)
@@ -91,7 +89,6 @@ grid:SetPoint("BOTTOMRIGHT", optionsFrame, "BOTTOMRIGHT", -16, 16)
 local checkboxes = {}
 
 local function CreateGrid()
-    -- Clear existing checkboxes
     for _, cb in ipairs(checkboxes) do
         cb:Hide()
     end
@@ -100,7 +97,6 @@ local function CreateGrid()
     local dungeons = TR.dungeons
     local talents = TR.talents
 
-    -- Column headers (dungeon names)
     for col, dungeon in ipairs(dungeons) do
         local header = grid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         header:SetPoint("TOP", grid, "TOPLEFT",
@@ -111,7 +107,6 @@ local function CreateGrid()
         header:SetText(dungeon.short)
         header:SetTextColor(1, 0.82, 0)
 
-        -- Tooltip for full name
         local headerBtn = CreateFrame("Frame", nil, grid)
         headerBtn:SetSize(COL_WIDTH, HEADER_HEIGHT)
         headerBtn:SetPoint("TOP", header, "TOP", 0, 4)
@@ -124,22 +119,18 @@ local function CreateGrid()
         headerBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
 
-    -- Rows (talents)
     for row, talent in ipairs(talents) do
         local yOffset = -(HEADER_HEIGHT + (row - 1) * ROW_HEIGHT)
 
-        -- Talent icon
         local icon = grid:CreateTexture(nil, "ARTWORK")
         icon:SetSize(20, 20)
         icon:SetPoint("TOPLEFT", grid, "TOPLEFT", 0, yOffset - 4)
         icon:SetTexture(C_Spell.GetSpellTexture(talent.spellID))
 
-        -- Talent name
         local label = grid:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         label:SetPoint("LEFT", icon, "RIGHT", 6, 0)
         label:SetText(talent.name)
 
-        -- Checkboxes for each dungeon
         for col, dungeon in ipairs(dungeons) do
             local cb = CreateFrame("CheckButton", nil, grid, "UICheckButtonTemplate")
             cb:SetSize(24, 24)
@@ -164,7 +155,6 @@ local function CreateGrid()
     end
 end
 
--- Defaults button
 local defaultsBtn = CreateFrame("Button", nil, optionsFrame, "UIPanelButtonTemplate")
 defaultsBtn:SetSize(100, 22)
 defaultsBtn:SetText("Defaults")
@@ -185,11 +175,9 @@ optionsFrame:SetScript("OnShow", function()
     CreateGrid()
 end)
 
--- Register with the Settings API
 local category = Settings.RegisterCanvasLayoutCategory(optionsFrame, "OrtemisTools")
 Settings.RegisterAddOnCategory(category)
 
--- Slash command
 SLASH_ORTEMISTOOLS1 = "/ort"
 SlashCmdList["ORTEMISTOOLS"] = function()
     Settings.OpenToCategory(category:GetID())
