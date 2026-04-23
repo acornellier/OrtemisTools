@@ -52,6 +52,7 @@ end
 
 
 local function shouldHideBars()
+	if not anchorFrame.db or not anchorFrame.db.hideWhenSolo then return false end
 	return not UnitExists("target")
 		and not UnitAffectingCombat("player")
 		and GetNumGroupMembers() == 0
@@ -210,6 +211,7 @@ local function init(self)
 	self.db = OrtemisToolsDB.renewingMist
 	local db = self.db
 	if db.hideDefault == nil then db.hideDefault = true end
+	if db.hideWhenSolo == nil then db.hideWhenSolo = true end
 	db.width = db.width or 230
 	db.height = db.height or 16
 	db.spacing = db.spacing or 2
@@ -293,6 +295,18 @@ C_Timer.After(0, function()
 			set = function(_, value)
 				anchorFrame.db.hideDefault = value
 				refreshHooks()
+			end,
+		},
+		{
+			name = "Hide if solo, out of combat, and no target",
+			kind = lem.SettingType.Checkbox,
+			default = true,
+			get = function()
+				return anchorFrame.db.hideWhenSolo
+			end,
+			set = function(_, value)
+				anchorFrame.db.hideWhenSolo = value
+				updateVisibility()
 			end,
 		},
 		{
