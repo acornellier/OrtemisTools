@@ -199,6 +199,21 @@ C_Timer.After(0, function()
 	hooksecurefunc(BuffBarCooldownViewer, "RefreshLayout", refreshHooks)
 	refreshHooks()
 
+	local unitAuraFrame = CreateFrame("Frame")
+	unitAuraFrame:RegisterUnitEvent("UNIT_AURA", "player")
+	unitAuraFrame:SetScript("OnEvent", function()
+		if isEditing or not barFrame then return end
+		local stacks = 0
+		local auraInstanceID = barFrame:GetAuraSpellInstanceID()
+		if auraInstanceID then
+			local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
+			if auraData and auraData.spellId == spellID then
+				stacks = auraData.applications or 0
+			end
+		end
+		updateBars(stacks)
+	end)
+
 	local lem = LibStub("LibEditMode")
 	lem:RegisterCallback("layout", function()
 		updateLayout(anchorFrame)
