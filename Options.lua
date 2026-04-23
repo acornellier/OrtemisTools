@@ -12,7 +12,7 @@ optionsFrame:Hide()
 -- Chi Balls section
 local cbTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 cbTitle:SetPoint("TOPLEFT", 16, -16)
-cbTitle:SetText("Teachings of the Monastery")
+cbTitle:SetText("Teachings of the Monastery Balls")
 
 local chiballsEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
 chiballsEnabledCB:SetSize(24, 24)
@@ -33,13 +33,13 @@ local cbDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmal
 cbDesc:SetPoint("TOPLEFT", cbTitle, "BOTTOMLEFT", 0, -6)
 cbDesc:SetText("Displays Teachings of the Monastery stacks. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.\n\nThanks to sfmict for developing this module!")
 cbDesc:SetTextColor(0.7, 0.7, 0.7)
-cbDesc:SetWidth(500)
+cbDesc:SetWidth(600)
 cbDesc:SetJustifyH("LEFT")
 
 -- Spiritfont section
 local sfTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 sfTitle:SetPoint("TOPLEFT", cbDesc, "BOTTOMLEFT", 0, -24)
-sfTitle:SetText("Spiritfont")
+sfTitle:SetText("Spiritfont Balls")
 
 local spiritfontEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
 spiritfontEnabledCB:SetSize(24, 24)
@@ -60,13 +60,13 @@ local sfDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmal
 sfDesc:SetPoint("TOPLEFT", sfTitle, "BOTTOMLEFT", 0, -6)
 sfDesc:SetText("Displays Spirit Font stacks. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.")
 sfDesc:SetTextColor(0.7, 0.7, 0.7)
-sfDesc:SetWidth(500)
+sfDesc:SetWidth(600)
 sfDesc:SetJustifyH("LEFT")
 
 -- Dance of Chi Ji section
 local dTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 dTitle:SetPoint("TOPLEFT", sfDesc, "BOTTOMLEFT", 0, -24)
-dTitle:SetText("Dance of Chi Ji")
+dTitle:SetText("Dance of Chi-Ji Balls")
 
 local danceEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
 danceEnabledCB:SetSize(24, 24)
@@ -87,7 +87,7 @@ local dDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall
 dDesc:SetPoint("TOPLEFT", dTitle, "BOTTOMLEFT", 0, -6)
 dDesc:SetText("Displays Dance of Chi Ji proc. Requires buff to be enabled in CDM as a Tracked Buff. Configure in Edit Mode.")
 dDesc:SetTextColor(0.7, 0.7, 0.7)
-dDesc:SetWidth(500)
+dDesc:SetWidth(600)
 dDesc:SetJustifyH("LEFT")
 
 -- Renewing Mist section
@@ -112,9 +112,9 @@ end)
 
 local remDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 remDesc:SetPoint("TOPLEFT", remTitle, "BOTTOMLEFT", 0, -6)
-remDesc:SetText("Displays Renewing Mist charges as horizontal progress bars. Configure in Edit Mode.\n\nNote: 'Hide from CDM' only works if Renewing Mist is added to CDM as a standard Tracked Bar (not a Cooldown Bar).")
+remDesc:SetText("Displays Renewing Mist charges as horizontal progress bars. Configure in Edit Mode.")
 remDesc:SetTextColor(0.7, 0.7, 0.7)
-remDesc:SetWidth(500)
+remDesc:SetWidth(600)
 remDesc:SetJustifyH("LEFT")
 
 -- Talent Reminders section
