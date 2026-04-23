@@ -71,7 +71,7 @@ local lem = LibStub("LibEditMode")
 		{
 			name = "Icon Size",
 			kind = lem.SettingType.Slider,
-			default = 36,
+			default = 33,
 			minValue = 4,
 			maxValue = 50,
 			valueStep = 1,
