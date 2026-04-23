@@ -37,9 +37,36 @@ cbDesc:SetTextColor(0.7, 0.7, 0.7)
 cbDesc:SetWidth(500)
 cbDesc:SetJustifyH("LEFT")
 
+-- Renewing Mist section
+local remTitle = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+remTitle:SetPoint("TOPLEFT", cbDesc, "BOTTOMLEFT", 0, -24)
+remTitle:SetText("Renewing Mist")
+
+local remEnabledCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")
+remEnabledCB:SetSize(24, 24)
+remEnabledCB:SetPoint("LEFT", remTitle, "RIGHT", 8, 0)
+remEnabledCB.text = remEnabledCB:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+remEnabledCB.text:SetPoint("LEFT", remEnabledCB, "RIGHT", 2, 0)
+remEnabledCB.text:SetText("Enabled")
+remEnabledCB:SetScript("OnShow", function(self)
+    self:SetChecked(OrtemisToolsDB.renewingMist and OrtemisToolsDB.renewingMist.enabled ~= false)
+end)
+remEnabledCB:SetScript("OnClick", function(self)
+    OrtemisToolsDB.renewingMist = OrtemisToolsDB.renewingMist or {}
+    OrtemisToolsDB.renewingMist.enabled = self:GetChecked()
+    if ns.RenewingMist then ns.RenewingMist.refresh() end
+end)
+
+local remDesc = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+remDesc:SetPoint("TOPLEFT", remTitle, "BOTTOMLEFT", 0, -6)
+remDesc:SetText("Displays Renewing Mist charges as horizontal progress bars. Configure in Edit Mode.\n\nNote: 'Hide from CDM' only works if Renewing Mist is added to CDM as a standard Tracked Bar (not a Cooldown Bar).")
+remDesc:SetTextColor(0.7, 0.7, 0.7)
+remDesc:SetWidth(500)
+remDesc:SetJustifyH("LEFT")
+
 -- Talent Reminders section
 local title = optionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOPLEFT", cbDesc, "BOTTOMLEFT", 0, -24)
+title:SetPoint("TOPLEFT", remDesc, "BOTTOMLEFT", 0, -24)
 title:SetText("Talent Reminders")
 
 local enableCB = CreateFrame("CheckButton", nil, optionsFrame, "UICheckButtonTemplate")

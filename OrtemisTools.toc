@@ -16,3 +16,4 @@ TalentReminder/Data.lua
 TalentReminder/Core.lua
 TalentReminder/Options.lua
 ChiBalls/Core.lua
+RenewingMist/Core.lua

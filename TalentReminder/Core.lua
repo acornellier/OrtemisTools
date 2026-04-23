@@ -197,6 +197,8 @@ local function InitDB()
     OrtemisToolsDB.talentConfig = OrtemisToolsDB.talentConfig or {}
     OrtemisToolsDB.chiBalls = OrtemisToolsDB.chiBalls or {}
     if OrtemisToolsDB.chiBalls.enabled == nil then OrtemisToolsDB.chiBalls.enabled = true end
+    OrtemisToolsDB.renewingMist = OrtemisToolsDB.renewingMist or {}
+    if OrtemisToolsDB.renewingMist.enabled == nil then OrtemisToolsDB.renewingMist.enabled = true end
 
     -- Merge defaults for any missing entries
     for spellID, dungeonDefaults in pairs(TR.defaults) do
