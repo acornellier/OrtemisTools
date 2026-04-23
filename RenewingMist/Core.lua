@@ -14,6 +14,12 @@ local maxStacks = 3
 local bars = {}
 local barFrame = nil
 local isEditing = false
+local eventFrame = nil
+
+-- currentCharges is always a secret value from addon code (Blizzard's design).
+-- Arithmetic or comparison on it throws. Track the count locally via events instead.
+local localCharges = maxStacks
+local pendingConsumed = false  -- true between UNIT_SPELLCAST_SUCCEEDED and its SPELL_UPDATE_CHARGES
 
 for i = 1, maxStacks do
 	local f = CreateFrame("Frame", nil, anchorFrame)
@@ -37,41 +43,51 @@ for i = 1, maxStacks do
 end
 
 
-local updater = CreateFrame("Frame")
-updater:Hide()
-
-
-local function applyChargeInfo()
-	local info = C_Spell.GetSpellCharges(spellID)
-	local charges = info and info.currentCharges or 0
-	local maxCharges = info and info.maxCharges or maxStacks
-	local duration = info and info.cooldownDuration or 0
-	local recharging = info and charges < maxCharges and duration > 0
-
-	local progress = 0
-	if recharging then
-		progress = math.max(0, math.min(1, (GetTime() - (info.cooldownStartTime or 0)) / duration))
-	end
-
-	for i = 1, maxStacks do
-		if i <= charges then
-			bars[i].bar:SetValue(1)
-		elseif i == charges + 1 and recharging then
-			bars[i].bar:SetValue(progress)
-		else
-			bars[i].bar:SetValue(0)
-		end
-	end
-
-	return recharging
+-- Sync localCharges from the API when the value is readable (out of combat).
+local function syncCharges(chargeInfo)
+	if not chargeInfo then return end
+	if issecretvalue and issecretvalue(chargeInfo.currentCharges) then return end
+	localCharges = chargeInfo.currentCharges + 0
 end
 
 
-updater:SetScript("OnUpdate", function()
-	if not isEditing then
-		applyChargeInfo()
+local function updateBars()
+	local chargeInfo = C_Spell.GetSpellCharges(spellID)
+	if not chargeInfo then
+		for i = 1, maxStacks do
+			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+			bars[i].bar:SetValue(0)
+		end
+		return
 	end
-end)
+
+	syncCharges(chargeInfo)
+
+	local charges = localCharges
+	local isRecharging = chargeInfo.isActive == true  -- non-secret bool per 12.0.1
+
+	for i = 1, maxStacks do
+		local b = bars[i].bar
+		if i <= charges then
+			b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+			b:SetValue(1)
+		elseif i == charges + 1 and isRecharging then
+			local durObj = C_Spell.GetSpellChargeDuration(spellID)
+			if durObj then
+				-- SetMinMaxValues and SetTimerDuration accept secret values
+				b:SetMinMaxValues(0, chargeInfo.cooldownDuration)
+				b:SetTimerDuration(durObj, Enum.StatusBarInterpolation.None, Enum.StatusBarTimerDirection.ElapsedTime)
+				b:SetToTargetValue()
+			else
+				b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+				b:SetValue(0)
+			end
+		else
+			b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
+			b:SetValue(0)
+		end
+	end
+end
 
 
 local function findCDMBar()
@@ -104,14 +120,14 @@ local function refreshHooks()
 
 	if OrtemisToolsDB.renewingMist.enabled == false then
 		for i = 1, maxStacks do bars[i]:Hide() end
-		updater:Hide()
+		if eventFrame then eventFrame:UnregisterAllEvents() end
 		return
 	end
 
 	if isEditing then
-		updater:Hide()
 		for i = 1, maxStacks do
 			bars[i]:Show()
+			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
 			bars[i].bar:SetValue(1)
 		end
 		return
@@ -121,20 +137,29 @@ local function refreshHooks()
 	for i = 1, maxStacks do
 		bars[i]:SetShown(show)
 	end
-	updater:SetShown(show)
-	if not show then return end
 
-	barFrame = findCDMBar()
-	if barFrame and anchorFrame.db.hideDefault then
-		barFrame._ReM = true
-		barFrame:SetAlpha(0)
-		local setAlpha = getmetatable(barFrame).__index.SetAlpha
-		hooksecurefunc(barFrame, "SetAlpha", function(self)
-			setAlpha(self, 0)
-		end)
+	if show then
+		if eventFrame then
+			eventFrame:RegisterEvent("SPELL_UPDATE_CHARGES")
+			eventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+			eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+			eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+		end
+
+		barFrame = findCDMBar()
+		if barFrame and anchorFrame.db.hideDefault then
+			barFrame._ReM = true
+			barFrame:SetAlpha(0)
+			local setAlpha = getmetatable(barFrame).__index.SetAlpha
+			hooksecurefunc(barFrame, "SetAlpha", function(self)
+				setAlpha(self, 0)
+			end)
+		end
+
+		updateBars()
+	else
+		if eventFrame then eventFrame:UnregisterAllEvents() end
 	end
-
-	applyChargeInfo()
 end
 
 ReM.refresh = refreshHooks
@@ -191,14 +216,43 @@ local function onPositionChanged(self, layoutName, point, x, y)
 end
 
 
-
 C_Timer.After(0, function()
 	init(anchorFrame)
 
-	local eventFrame = CreateFrame("Frame")
-	eventFrame:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
-	eventFrame:SetScript("OnEvent", function(self, event)
+	local specFrame = CreateFrame("Frame")
+	specFrame:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
+	specFrame:SetScript("OnEvent", function()
 		refreshHooks()
+	end)
+
+	eventFrame = CreateFrame("Frame")
+	eventFrame:SetScript("OnEvent", function(self, event, a1, a2, a3)
+		if event == "UNIT_SPELLCAST_SUCCEEDED" then
+			if a3 ~= spellID then return end
+			-- Charge consumed: decrement before SPELL_UPDATE_CHARGES fires
+			pendingConsumed = true
+			localCharges = math.max(0, localCharges - 1)
+
+		elseif event == "SPELL_UPDATE_CHARGES" then
+			local chargeInfo = C_Spell.GetSpellCharges(spellID)
+			if chargeInfo then
+				if chargeInfo.isActive ~= true then
+					-- No recharge in progress = all charges full
+					localCharges = maxStacks
+				elseif not pendingConsumed then
+					-- isActive==true and not from our own cast: a charge was gained
+					localCharges = math.min(maxStacks - 1, localCharges + 1)
+				end
+				pendingConsumed = false
+			end
+
+		elseif event == "PLAYER_REGEN_ENABLED" then
+			-- Out of combat: sync from API now that values are readable
+			local chargeInfo = C_Spell.GetSpellCharges(spellID)
+			syncCharges(chargeInfo)
+		end
+
+		updateBars()
 	end)
 
 	refreshHooks()
@@ -277,9 +331,10 @@ C_Timer.After(0, function()
 
 	lem:RegisterCallback("enter", function()
 		isEditing = true
-		updater:Hide()
+		if eventFrame then eventFrame:UnregisterAllEvents() end
 		for i = 1, maxStacks do
 			bars[i]:Show()
+			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
 			bars[i].bar:SetValue(1)
 		end
 	end)
