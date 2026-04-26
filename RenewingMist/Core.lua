@@ -19,7 +19,6 @@ local eventFrame = nil
 -- currentCharges is always a secret value from addon code (Blizzard's design).
 -- Arithmetic or comparison on it throws. Track the count locally via events instead.
 local localCharges = maxStacks
-local pendingConsumed = false  -- true between UNIT_SPELLCAST_SUCCEEDED and its SPELL_UPDATE_CHARGES
 
 for i = 1, maxStacks do
 	local f = CreateFrame("Frame", nil, anchorFrame)
@@ -247,9 +246,22 @@ C_Timer.After(0, function()
 	eventFrame:SetScript("OnEvent", function(self, event, a1, a2, a3)
 		if event == "UNIT_SPELLCAST_SUCCEEDED" then
 			if a3 ~= spellID then return end
-			-- Charge consumed: decrement before SPELL_UPDATE_CHARGES fires
-			pendingConsumed = true
 			localCharges = math.max(0, localCharges - 1)
+			-- Schedule a timer to restore the charge when recharge completes.
+			-- SPELL_UPDATE_CHARGES fires for ANY spell (e.g. Thunder Focus Tea), so we
+			-- can't reliably detect a ReM charge gain from that event alone.
+			local ci = C_Spell.GetSpellCharges(spellID)
+			if ci then
+				local ok, dur = pcall(function() return ci.cooldownDuration + 0 end)
+				if ok and type(dur) == "number" and dur > 0 then
+					C_Timer.After(dur, function()
+						if localCharges < maxStacks then
+							localCharges = localCharges + 1
+							updateBars()
+						end
+					end)
+				end
+			end
 
 		elseif event == "SPELL_UPDATE_CHARGES" then
 			local chargeInfo = C_Spell.GetSpellCharges(spellID)
@@ -257,11 +269,10 @@ C_Timer.After(0, function()
 				if chargeInfo.isActive ~= true then
 					-- No recharge in progress = all charges full
 					localCharges = maxStacks
-				elseif not pendingConsumed then
-					-- isActive==true and not from our own cast: a charge was gained
-					localCharges = math.min(maxStacks - 1, localCharges + 1)
 				end
-				pendingConsumed = false
+				-- No increment here: SPELL_UPDATE_CHARGES fires for ALL spells (including
+				-- Thunder Focus Tea), so inferring a ReM charge gain from it causes false
+				-- positives. The timer in UNIT_SPELLCAST_SUCCEEDED handles mid-recharge gains.
 			end
 
 		elseif event == "PLAYER_REGEN_ENABLED" then
