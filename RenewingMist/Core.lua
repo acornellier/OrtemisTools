@@ -16,37 +16,55 @@ local barFrame = nil
 local isEditing = false
 local eventFrame = nil
 
--- currentCharges is always a secret value from addon code (Blizzard's design).
--- Arithmetic or comparison on it throws. Track the count locally via events instead.
-local localCharges = maxStacks
-
+-- Per-slot structure (ArcUI pattern):
+--   slot.fullBar:  SetMinMaxValues(i-0.5, i) + SetValue(secretCurrentCharges)
+--                  → full when charges >= i, empty otherwise; sits above rechargeBar
+--   slot.detector: offscreen 1px bar, same min/max. detectorTex:GetWidth() gives a
+--                  non-secret float (~1 when full, ~0 when empty) for alpha control.
+--   slot.rechargeBar: SetTimerDuration applied to all slots; alpha driven by
+--                     previous slot's detector width so only the right slot is visible.
 for i = 1, maxStacks do
 	local f = CreateFrame("Frame", nil, anchorFrame)
+	local baseLevel = anchorFrame:GetFrameLevel()
 
 	local bg = f:CreateTexture(nil, "BACKGROUND")
 	bg:SetAllPoints()
 	bg:SetColorTexture(0, 0, 0, 0.5)
 
-	local bar = CreateFrame("StatusBar", nil, f)
-	bar:SetAllPoints()
-	bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-	f.bar = bar
+	local rechargeBar = CreateFrame("StatusBar", nil, f)
+	rechargeBar:SetAllPoints()
+	rechargeBar:SetFrameLevel(baseLevel + 1)
+	rechargeBar:SetValue(0)
+
+	local fullBar = CreateFrame("StatusBar", nil, f)
+	fullBar:SetAllPoints()
+	fullBar:SetFrameLevel(baseLevel + 2)
+	fullBar:SetMinMaxValues(i - 0.5, i)
+	fullBar:SetValue(0)
 
 	local border = CreateFrame("Frame", nil, f, "BackdropTemplate")
 	border:SetAllPoints()
-	border:SetFrameLevel(bar:GetFrameLevel() + 1)
+	border:SetFrameLevel(baseLevel + 3)
 	border:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
 	border:SetBackdropBorderColor(0, 0, 0, 1)
 
+	-- Offscreen 1px detector: same min/max as fullBar.
+	-- GetWidth() on its texture is non-secret and near-zero when empty (off-screen skips
+	-- minimum pixel rendering), used to drive next slot's alpha without secret arithmetic.
+	local detector = CreateFrame("StatusBar", nil, UIParent)
+	detector:SetSize(1, 10)
+	detector:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -500, 500)
+	detector:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	detector:SetAlpha(0)
+	detector:SetMinMaxValues(i - 0.5, i)
+	detector:SetValue(0)
+	detector:Show()
+
+	f.rechargeBar = rechargeBar
+	f.fullBar = fullBar
+	f.detector = detector
+	f.detectorTex = detector:GetStatusBarTexture()
 	bars[i] = f
-end
-
-
--- Sync localCharges from the API when the value is readable (out of combat).
-local function syncCharges(chargeInfo)
-	if not chargeInfo then return end
-	if issecretvalue and issecretvalue(chargeInfo.currentCharges) then return end
-	localCharges = chargeInfo.currentCharges + 0
 end
 
 
@@ -67,38 +85,46 @@ end
 
 local function updateBars()
 	local chargeInfo = C_Spell.GetSpellCharges(spellID)
-	if not chargeInfo then
-		for i = 1, maxStacks do
-			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-			bars[i].bar:SetValue(0)
-		end
-		return
+	if not chargeInfo then return end
+
+	local secretCurrentCharges = chargeInfo.currentCharges
+	local isRecharging = chargeInfo.isActive == true
+
+	-- Feed fullBar and detector with the secret charge value.
+	-- fullBar renders solid for slots <= currentCharges, transparent otherwise.
+	-- detector width is used below to drive the next slot's alpha.
+	for i = 1, maxStacks do
+		bars[i].fullBar:SetValue(secretCurrentCharges)
+		bars[i].detector:SetValue(secretCurrentCharges)
 	end
 
-	syncCharges(chargeInfo)
-
-	local charges = localCharges
-	local isRecharging = chargeInfo.isActive == true  -- non-secret bool per 12.0.1
-
-	for i = 1, maxStacks do
-		local b = bars[i].bar
-		if i <= charges then
-			b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-			b:SetValue(1)
-		elseif i == charges + 1 and isRecharging then
-			local durObj = C_Spell.GetSpellChargeDuration(spellID)
-			if durObj then
-				-- SetMinMaxValues and SetTimerDuration accept secret values
-				b:SetMinMaxValues(0, chargeInfo.cooldownDuration)
-				b:SetTimerDuration(durObj, Enum.StatusBarInterpolation.None, Enum.StatusBarTimerDirection.ElapsedTime)
-				b:SetToTargetValue()
-			else
-				b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-				b:SetValue(0)
+	-- Apply recharge timer to all slots; only the correct slot will be visible
+	-- because its alpha is gated by the previous slot's detector width (below).
+	if isRecharging then
+		local durObj = C_Spell.GetSpellChargeDuration(spellID)
+		if durObj then
+			for i = 1, maxStacks do
+				bars[i].rechargeBar:SetMinMaxValues(0, chargeInfo.cooldownDuration)
+				bars[i].rechargeBar:SetTimerDuration(durObj, Enum.StatusBarInterpolation.None, Enum.StatusBarTimerDirection.ElapsedTime)
+				bars[i].rechargeBar:SetToTargetValue()
 			end
+		end
+	else
+		for i = 1, maxStacks do
+			bars[i].rechargeBar:SetValue(0)
+		end
+	end
+
+	-- Drive slot visibility: slot 1 always fully visible; slot i > 1 gets its alpha
+	-- set to prevSlot.detectorTex:GetWidth(), which is non-secret (~1 when full, ~0 when empty).
+	for i = 1, maxStacks do
+		if i == 1 then
+			bars[i].rechargeBar:SetAlpha(1)
+			bars[i].fullBar:SetAlpha(1)
 		else
-			b:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-			b:SetValue(0)
+			local w = bars[i - 1].detectorTex:GetWidth()
+			bars[i].rechargeBar:SetAlpha(w)
+			bars[i].fullBar:SetAlpha(w)
 		end
 	end
 end
@@ -141,8 +167,10 @@ local function refreshHooks()
 	if isEditing then
 		for i = 1, maxStacks do
 			bars[i]:Show()
-			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-			bars[i].bar:SetValue(1)
+			bars[i].fullBar:SetValue(i)
+			bars[i].fullBar:SetAlpha(1)
+			bars[i].rechargeBar:SetValue(0)
+			bars[i].rechargeBar:SetAlpha(1)
 		end
 		return
 	end
@@ -196,6 +224,8 @@ local function updateLayout(self)
 		else
 			bars[i]:SetPoint("TOPLEFT", bars[i - 1], "TOPRIGHT", spacing, 0)
 		end
+		bars[i].rechargeBar:SetAllPoints(bars[i])
+		bars[i].fullBar:SetAllPoints(bars[i])
 	end
 
 	self:SetSize(totalWidth, height)
@@ -220,8 +250,10 @@ local function init(self)
 
 	local tex = LibStub("LibSharedMedia-3.0"):Fetch("statusbar", "Steel")
 	for i = 1, maxStacks do
-		bars[i].bar:SetStatusBarTexture(tex)
-		bars[i].bar:SetStatusBarColor(0, 1, 188 / 255)
+		bars[i].fullBar:SetStatusBarTexture(tex)
+		bars[i].fullBar:SetStatusBarColor(0, 1, 188 / 255)
+		bars[i].rechargeBar:SetStatusBarTexture(tex)
+		bars[i].rechargeBar:SetStatusBarColor(0, 1, 188 / 255)
 	end
 end
 
@@ -235,6 +267,7 @@ end
 
 C_Timer.After(0, function()
 	init(anchorFrame)
+	updateLayout(anchorFrame)
 
 	local specFrame = CreateFrame("Frame")
 	specFrame:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
@@ -244,43 +277,7 @@ C_Timer.After(0, function()
 
 	eventFrame = CreateFrame("Frame")
 	eventFrame:SetScript("OnEvent", function(self, event, a1, a2, a3)
-		if event == "UNIT_SPELLCAST_SUCCEEDED" then
-			if a3 ~= spellID then return end
-			localCharges = math.max(0, localCharges - 1)
-			-- Schedule a timer to restore the charge when recharge completes.
-			-- SPELL_UPDATE_CHARGES fires for ANY spell (e.g. Thunder Focus Tea), so we
-			-- can't reliably detect a ReM charge gain from that event alone.
-			local ci = C_Spell.GetSpellCharges(spellID)
-			if ci then
-				local ok, dur = pcall(function() return ci.cooldownDuration + 0 end)
-				if ok and type(dur) == "number" and dur > 0 then
-					C_Timer.After(dur, function()
-						if localCharges < maxStacks then
-							localCharges = localCharges + 1
-							updateBars()
-						end
-					end)
-				end
-			end
-
-		elseif event == "SPELL_UPDATE_CHARGES" then
-			local chargeInfo = C_Spell.GetSpellCharges(spellID)
-			if chargeInfo then
-				if chargeInfo.isActive ~= true then
-					-- No recharge in progress = all charges full
-					localCharges = maxStacks
-				end
-				-- No increment here: SPELL_UPDATE_CHARGES fires for ALL spells (including
-				-- Thunder Focus Tea), so inferring a ReM charge gain from it causes false
-				-- positives. The timer in UNIT_SPELLCAST_SUCCEEDED handles mid-recharge gains.
-			end
-
-		elseif event == "PLAYER_REGEN_ENABLED" then
-			-- Out of combat: sync from API now that values are readable
-			local chargeInfo = C_Spell.GetSpellCharges(spellID)
-			syncCharges(chargeInfo)
-		end
-
+		if event == "UNIT_SPELLCAST_SUCCEEDED" and a3 ~= spellID then return end
 		updateBars()
 		updateVisibility()
 	end)
@@ -376,8 +373,10 @@ C_Timer.After(0, function()
 		if eventFrame then eventFrame:UnregisterAllEvents() end
 		for i = 1, maxStacks do
 			bars[i]:Show()
-			bars[i].bar:SetMinMaxValues(0, 1, Enum.StatusBarInterpolation.Immediate)
-			bars[i].bar:SetValue(1)
+			bars[i].fullBar:SetValue(i)
+			bars[i].fullBar:SetAlpha(1)
+			bars[i].rechargeBar:SetValue(0)
+			bars[i].rechargeBar:SetAlpha(1)
 		end
 	end)
 

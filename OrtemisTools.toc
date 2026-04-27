@@ -2,7 +2,7 @@
 ## Title: OrtemisTools
 ## Notes: Custom textures for LibSharedMedia + Talent reminders for M+ dungeons
 ## Author: Ort
-## Version: 3.2.1
+## Version: 3.2.2
 ## Dependencies: SharedMedia
 ## SavedVariables: OrtemisToolsDB
 ## X-Curse-Project-ID: 1486302

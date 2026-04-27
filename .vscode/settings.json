@@ -33,6 +33,7 @@
     "Settings",
     "CreateTexturePool",
     "CreateFramePool",
-    "AnimateTexCoords"
+    "AnimateTexCoords",
+    "CooldownFrame_Clear"
   ]
 }
