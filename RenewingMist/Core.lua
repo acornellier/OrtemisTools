@@ -83,6 +83,15 @@ local function updateVisibility()
 end
 
 
+local function applySlotAlphas()
+	for i = 2, maxStacks do
+		local w = bars[i - 1].detectorTex:GetWidth()
+		bars[i].rechargeBar:SetAlpha(w)
+		bars[i].fullBar:SetAlpha(w)
+	end
+end
+
+
 local function updateBars()
 	local chargeInfo = C_Spell.GetSpellCharges(spellID)
 	if not chargeInfo then return end
@@ -92,14 +101,14 @@ local function updateBars()
 
 	-- Feed fullBar and detector with the secret charge value.
 	-- fullBar renders solid for slots <= currentCharges, transparent otherwise.
-	-- detector width is used below to drive the next slot's alpha.
+	-- detector width is used by applySlotAlphas to drive the next slot's alpha.
 	for i = 1, maxStacks do
 		bars[i].fullBar:SetValue(secretCurrentCharges)
 		bars[i].detector:SetValue(secretCurrentCharges)
 	end
 
 	-- Apply recharge timer to all slots; only the correct slot will be visible
-	-- because its alpha is gated by the previous slot's detector width (below).
+	-- because its alpha is gated by the previous slot's detector width.
 	if isRecharging then
 		local durObj = C_Spell.GetSpellChargeDuration(spellID)
 		if durObj then
@@ -115,18 +124,13 @@ local function updateBars()
 		end
 	end
 
-	-- Drive slot visibility: slot 1 always fully visible; slot i > 1 gets its alpha
-	-- set to prevSlot.detectorTex:GetWidth(), which is non-secret (~1 when full, ~0 when empty).
-	for i = 1, maxStacks do
-		if i == 1 then
-			bars[i].rechargeBar:SetAlpha(1)
-			bars[i].fullBar:SetAlpha(1)
-		else
-			local w = bars[i - 1].detectorTex:GetWidth()
-			bars[i].rechargeBar:SetAlpha(w)
-			bars[i].fullBar:SetAlpha(w)
-		end
-	end
+	-- Slot 1 is always visible. Slots 2+ alpha follows the previous slot's detector width.
+	-- Called immediately and deferred one frame: WoW may not update detectorTex:GetWidth()
+	-- until after the current render, so the deferred call catches the corrected value.
+	bars[1].rechargeBar:SetAlpha(1)
+	bars[1].fullBar:SetAlpha(1)
+	applySlotAlphas()
+	C_Timer.After(0, applySlotAlphas)
 end
 
 
