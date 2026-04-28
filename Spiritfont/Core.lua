@@ -217,7 +217,7 @@ C_Timer.After(0, function()
 		local auraInstanceID = barFrame:GetAuraSpellInstanceID()
 		if auraInstanceID then
 			local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-			if auraData and auraData.spellId == spellID then
+			if auraData then
 				stacks = auraData.applications or 0
 			end
 		end
