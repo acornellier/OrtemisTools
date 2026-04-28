@@ -114,7 +114,17 @@ local function refreshHooks()
 	end)
 	hooksecurefunc(applications, "SetText", function(self, count)
 		if isEditing then return end
-		updateBars(tonumber(count) or barFrame:GetAuraSpellInstanceID() and 1 or 0)
+		local stacks = tonumber(count)
+		if stacks == nil then
+			local auraInstanceID = barFrame:GetAuraSpellInstanceID()
+			if auraInstanceID then
+				local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
+				stacks = (auraData and auraData.applications) or 0
+			else
+				stacks = 0
+			end
+		end
+		updateBars(stacks)
 	end)
 
 	local stacks = 0
