@@ -1,8 +1,8 @@
-## Interface: 11508, 20505, 30405, 38000, 40402, 50503, 110207, 120000, 120001
+## Interface: 11508, 20505, 30405, 38000, 40402, 50503, 110207, 120000, 120001, 120100
 ## Title: OrtemisTools
 ## Notes: Custom textures for LibSharedMedia + Talent reminders for M+ dungeons
 ## Author: Ort
-## Version: 3.2.4
+## Version: 3.2.5
 ## Dependencies: SharedMedia
 ## SavedVariables: OrtemisToolsDB
 ## X-Curse-Project-ID: 1486302
