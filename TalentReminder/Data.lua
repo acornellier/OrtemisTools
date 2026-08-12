@@ -5,15 +5,17 @@ local TR = ns.TalentReminder
 
 TR.MYTHIC_DIFFICULTY_ID = 23
 
+-- Season 2 pool, sorted by short name.
+-- ids are instanceIDs as returned by GetInstanceInfo().
 TR.dungeons = {
-    { id = 2526, name = "Algeth'ar Academy",       short = "AA" },
-    { id = 2811, name = "Magisters' Terrace",       short = "MAGI" },
-    { id = 2874, name = "Maisara Caverns",          short = "CAVNS" },
-    { id = 2915, name = "Nexus-Point Xenas",        short = "XENAS" },
-    { id = 658,  name = "Pit of Saron",             short = "PIT" },
-    { id = 1753, name = "Seat of the Triumvirate",  short = "SEAT" },
-    { id = 1209, name = "Skyreach",                 short = "SKY" },
-    { id = 2805, name = "Windrunner Spire",         short = "WIND" },
+    { id = 2993, name = "Altar of Fangs",           short = "FANG" },
+    { id = 1762, name = "Kings' Rest",              short = "KR" },
+    { id = 2813, name = "Murder Row",               short = "MURD" },
+    { id = 2825, name = "Den of Nalorakk",          short = "NALO" },
+    { id = 2521, name = "Ruby Life Pools",          short = "RLP" },
+    { id = 1877, name = "Temple of Sethraliss",     short = "TOS" },
+    { id = 2859, name = "The Blinding Vale",        short = "VALE" },
+    { id = 2923, name = "Voidscar Arena",           short = "VOID" },
 }
 
 -- Lookup table: instanceID → dungeon info
@@ -26,19 +28,30 @@ TR.talents = {
     { spellID = 388874, name = "Improved Detox" },
     { spellID = 450432, name = "Pressure Points" },
     { spellID = 1243287, name = "Diffuse Magic" },
-    { spellID = 328670, name = "Hasty Provocation" },
     { spellID = 450622, name = "Swift Art" },
+    { spellID = 328670, name = "Hasty Provocation" },
     { spellID = 434774, name = "Linked Spirits" },
 }
 
--- Default config for each talent/dungeon combo
+-- Default config for each talent/dungeon combo.
+--          FANG   KR   MURD  NALO   RLP   TOS   VALE  VOID
+-- Detox     x     x     x     x           x     x     x
+-- Pressure  x     x     x     x           x           x
+-- Diffuse   x     x     x     x     x     x     x     x
+-- Swift     x     x           x           x           x
 TR.defaults = {
-    [388874]  = { [2526] = true, [2874] = true, [658] = true, [2805] = true },
-    [450432]  = { [2526] = true, [2915] = true, [658] = true, [1753] = true, [1209] = true, [2805] = true },
-    [1243287] = { [2811] = true, [2874] = true, [2915] = true, [658] = true, [1753] = true, [2805] = true },
+    -- Improved Detox
+    [388874]  = { [2993] = true, [2859] = true, [2825] = true, [1762] = true, [2813] = true, [1877] = true, [2923] = true },
+    -- Pressure Points
+    [450432]  = { [2993] = true, [2825] = true, [1762] = true, [2813] = true, [1877] = true, [2923] = true },
+    -- Diffuse Magic
+    [1243287] = { [2993] = true, [2859] = true, [2825] = true, [1762] = true, [2813] = true, [2521] = true, [1877] = true, [2923] = true },
+    -- Swift Art
+    [450622]  = { [2993] = true, [2825] = true, [1762] = true, [1877] = true, [2923] = true },
+    -- Hasty Provocation
     [328670]  = { },
-    [450622]  = { [658] = true },
-    [434774]  = { [1209] = true, [2805] = true },
+    -- Linked Spirits
+    [434774]  = { },
 }
 -- Fill in missing dungeon entries with false
 for _, talent in ipairs(TR.talents) do
