@@ -10,11 +10,15 @@ anchorFrame.editModeName = "Renewing Mist"
 anchorFrame:SetClampedToScreen(true)
 
 local spellID = 115151
-local maxStacks = 3
+-- Renewing Mist has 2 charges baseline and 3 with the Pool of Mists talent, so the
+-- slot count is not fixed: activeSlots follows maxCharges, which is NeverSecret and
+-- therefore safe to use for layout. Slots are created on demand and kept for reuse.
+local activeSlots = 0
 local bars = {}
 local barFrame = nil
 local isEditing = false
 local eventFrame = nil
+local updateLayout
 
 -- Per-slot structure (ArcUI pattern):
 --   slot.fullBar:  SetMinMaxValues(i-0.5, i) + SetValue(secretCurrentCharges)
@@ -23,7 +27,7 @@ local eventFrame = nil
 --                  non-secret float (~1 when full, ~0 when empty) for alpha control.
 --   slot.rechargeBar: SetTimerDuration applied to all slots; alpha driven by
 --                     previous slot's detector width so only the right slot is visible.
-for i = 1, maxStacks do
+local function createSlot(i)
 	local f = CreateFrame("Frame", nil, anchorFrame)
 	local baseLevel = anchorFrame:GetFrameLevel()
 
@@ -64,7 +68,20 @@ for i = 1, maxStacks do
 	f.fullBar = fullBar
 	f.detector = detector
 	f.detectorTex = detector:GetStatusBarTexture()
+	f:Hide()
 	bars[i] = f
+	return f
+end
+
+
+local statusBarTexture = nil
+
+local function applySlotTexture(slot)
+	if not statusBarTexture then return end
+	slot.fullBar:SetStatusBarTexture(statusBarTexture)
+	slot.fullBar:SetStatusBarColor(0, 1, 188 / 255)
+	slot.rechargeBar:SetStatusBarTexture(statusBarTexture)
+	slot.rechargeBar:SetStatusBarColor(0, 1, 188 / 255)
 end
 
 
@@ -75,16 +92,47 @@ local function shouldHideBars()
 		and GetNumGroupMembers() == 0
 end
 
-local function updateVisibility()
-	local show = not shouldHideBars()
-	for i = 1, maxStacks do
-		bars[i]:SetShown(show)
+local function hideAllSlots()
+	for i = 1, #bars do
+		bars[i]:Hide()
 	end
 end
 
 
+local function updateVisibility()
+	local show = not shouldHideBars()
+	for i = 1, #bars do
+		bars[i]:SetShown(show and i <= activeSlots)
+	end
+end
+
+
+-- Resizes the display, creating slots as needed. Returns true when it changed.
+local function setSlotCount(count)
+	if count == activeSlots then return false end
+
+	for i = #bars + 1, count do
+		applySlotTexture(createSlot(i))
+	end
+
+	activeSlots = count
+	if anchorFrame.db then
+		updateLayout(anchorFrame)
+	end
+	return true
+end
+
+
+-- maxCharges is NeverSecret, so it can drive the layout directly.
+local function updateChargeCount(chargeInfo)
+	chargeInfo = chargeInfo or C_Spell.GetSpellCharges(spellID)
+	if not chargeInfo then return false end
+	return setSlotCount(math.max(chargeInfo.maxCharges, 1))
+end
+
+
 local function applySlotAlphas()
-	for i = 2, maxStacks do
+	for i = 2, activeSlots do
 		local w = bars[i - 1].detectorTex:GetWidth()
 		bars[i].rechargeBar:SetAlpha(w)
 		bars[i].fullBar:SetAlpha(w)
@@ -99,10 +147,12 @@ local function updateBars()
 	local secretCurrentCharges = chargeInfo.currentCharges
 	local isRecharging = chargeInfo.isActive == true
 
+	updateChargeCount(chargeInfo)
+
 	-- Feed fullBar and detector with the secret charge value.
 	-- fullBar renders solid for slots <= currentCharges, transparent otherwise.
 	-- detector width is used by applySlotAlphas to drive the next slot's alpha.
-	for i = 1, maxStacks do
+	for i = 1, activeSlots do
 		bars[i].fullBar:SetValue(secretCurrentCharges)
 		bars[i].detector:SetValue(secretCurrentCharges)
 	end
@@ -112,14 +162,14 @@ local function updateBars()
 	if isRecharging then
 		local durObj = C_Spell.GetSpellChargeDuration(spellID)
 		if durObj then
-			for i = 1, maxStacks do
+			for i = 1, activeSlots do
 				bars[i].rechargeBar:SetMinMaxValues(0, chargeInfo.cooldownDuration)
 				bars[i].rechargeBar:SetTimerDuration(durObj, Enum.StatusBarInterpolation.None, Enum.StatusBarTimerDirection.ElapsedTime)
 				bars[i].rechargeBar:SetToTargetValue()
 			end
 		end
 	else
-		for i = 1, maxStacks do
+		for i = 1, activeSlots do
 			bars[i].rechargeBar:SetValue(0)
 		end
 	end
@@ -131,6 +181,24 @@ local function updateBars()
 	bars[1].fullBar:SetAlpha(1)
 	applySlotAlphas()
 	C_Timer.After(0, applySlotAlphas)
+end
+
+
+local function showEditPreview()
+	updateChargeCount()
+	if activeSlots == 0 then
+		-- Charge data unavailable (e.g. editing outside Mistweaver); fall back to the
+		-- baseline two charges so the anchor can still be positioned.
+		setSlotCount(2)
+	end
+
+	for i = 1, activeSlots do
+		bars[i]:Show()
+		bars[i].fullBar:SetValue(i)
+		bars[i].fullBar:SetAlpha(1)
+		bars[i].rechargeBar:SetValue(0)
+		bars[i].rechargeBar:SetAlpha(1)
+	end
 end
 
 
@@ -163,19 +231,13 @@ local function refreshHooks()
 	barFrame = nil
 
 	if OrtemisToolsDB.renewingMist.enabled == false then
-		for i = 1, maxStacks do bars[i]:Hide() end
+		hideAllSlots()
 		if eventFrame then eventFrame:UnregisterAllEvents() end
 		return
 	end
 
 	if isEditing then
-		for i = 1, maxStacks do
-			bars[i]:Show()
-			bars[i].fullBar:SetValue(i)
-			bars[i].fullBar:SetAlpha(1)
-			bars[i].rechargeBar:SetValue(0)
-			bars[i].rechargeBar:SetAlpha(1)
-		end
+		showEditPreview()
 		return
 	end
 
@@ -205,7 +267,7 @@ local function refreshHooks()
 		updateBars()
 		updateVisibility()
 	else
-		for i = 1, maxStacks do bars[i]:Hide() end
+		hideAllSlots()
 		if eventFrame then eventFrame:UnregisterAllEvents() end
 	end
 end
@@ -213,23 +275,30 @@ end
 ReM.refresh = refreshHooks
 
 
-local function updateLayout(self)
+function updateLayout(self)
 	local db = self.db
 	local totalWidth = db.width
 	local height = db.height
 	local spacing = db.spacing
-	local barWidth = math.floor((totalWidth - spacing * (maxStacks - 1)) / maxStacks)
+	-- Slots divide the configured width, so the frame keeps the same footprint
+	-- whether Renewing Mist has 2 or 3 charges.
+	local slots = math.max(activeSlots, 1)
+	local barWidth = math.floor((totalWidth - spacing * (slots - 1)) / slots)
 
-	for i = 1, maxStacks do
-		bars[i]:SetSize(barWidth, height)
-		bars[i]:ClearAllPoints()
-		if i == 1 then
-			bars[i]:SetPoint("TOPLEFT", 0, 0)
+	for i = 1, #bars do
+		if i > activeSlots then
+			bars[i]:Hide()
 		else
-			bars[i]:SetPoint("TOPLEFT", bars[i - 1], "TOPRIGHT", spacing, 0)
+			bars[i]:SetSize(barWidth, height)
+			bars[i]:ClearAllPoints()
+			if i == 1 then
+				bars[i]:SetPoint("TOPLEFT", 0, 0)
+			else
+				bars[i]:SetPoint("TOPLEFT", bars[i - 1], "TOPRIGHT", spacing, 0)
+			end
+			bars[i].rechargeBar:SetAllPoints(bars[i])
+			bars[i].fullBar:SetAllPoints(bars[i])
 		end
-		bars[i].rechargeBar:SetAllPoints(bars[i])
-		bars[i].fullBar:SetAllPoints(bars[i])
 	end
 
 	self:SetSize(totalWidth, height)
@@ -252,12 +321,9 @@ local function init(self)
 	db.x = db.x or 0
 	db.y = db.y or UIParent:GetHeight() / 5 * 2
 
-	local tex = LibStub("LibSharedMedia-3.0"):Fetch("statusbar", "Steel")
-	for i = 1, maxStacks do
-		bars[i].fullBar:SetStatusBarTexture(tex)
-		bars[i].fullBar:SetStatusBarColor(0, 1, 188 / 255)
-		bars[i].rechargeBar:SetStatusBarTexture(tex)
-		bars[i].rechargeBar:SetStatusBarColor(0, 1, 188 / 255)
+	statusBarTexture = LibStub("LibSharedMedia-3.0"):Fetch("statusbar", "Steel")
+	for i = 1, #bars do
+		applySlotTexture(bars[i])
 	end
 end
 
@@ -271,10 +337,16 @@ end
 
 C_Timer.After(0, function()
 	init(anchorFrame)
+	updateChargeCount()
 	updateLayout(anchorFrame)
 
+	-- Stays registered in every spec: talent swaps change the charge count, and the
+	-- spell data behind maxCharges may not be ready yet at the initial refresh.
 	local specFrame = CreateFrame("Frame")
 	specFrame:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
+	specFrame:RegisterEvent("TRAIT_CONFIG_UPDATED")
+	specFrame:RegisterEvent("SPELLS_CHANGED")
+	specFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	specFrame:SetScript("OnEvent", function()
 		refreshHooks()
 	end)
@@ -375,13 +447,7 @@ C_Timer.After(0, function()
 	lem:RegisterCallback("enter", function()
 		isEditing = true
 		if eventFrame then eventFrame:UnregisterAllEvents() end
-		for i = 1, maxStacks do
-			bars[i]:Show()
-			bars[i].fullBar:SetValue(i)
-			bars[i].fullBar:SetAlpha(1)
-			bars[i].rechargeBar:SetValue(0)
-			bars[i].rechargeBar:SetAlpha(1)
-		end
+		showEditPreview()
 	end)
 
 	lem:RegisterCallback("exit", function()
