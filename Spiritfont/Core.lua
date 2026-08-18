@@ -17,7 +17,8 @@ local iconY = 5
 local dSize = 50
 local iconSize = 32
 local maxStacks = 2
-local bars, barFrame = {}
+local bars, barFrame, applicationsText = {}
+local lastCount
 local isEditing = false
 
 for i = 1, maxStacks do
@@ -46,6 +47,30 @@ local function updateBars(stacks)
 end
 
 
+-- Stack count, read without ever touching aura data directly. Since 12.1 the aura
+-- instance ID handed out by the cooldown viewer is a secret value while combat
+-- restrictions are in effect, and C_UnitAuras.GetAuraDataByAuraInstanceID rejects secret
+-- arguments coming from addon code, so the old lookup threw in combat and left the orbs
+-- showing whatever they were last set to. Everything used here is untainted data the
+-- viewer already computed: its applications text (printed only at 2 stacks and up, and
+-- accepted by SetValue even when it is itself a secret value) and isActive, its own
+-- aura-present-and-unexpired flag, which covers no aura versus a single stack.
+-- isActive is read as a plain field on purpose. Its setter is a mixin method, and mixin
+-- methods live on the frame itself rather than on a metatable, so hooking one and later
+-- clearing that hook the way SetAlpha is cleared would delete the method outright.
+local function updateFromViewer()
+	if isEditing or not barFrame then return end
+
+	if not barFrame.isActive then
+		updateBars(0)
+	elseif lastCount then
+		updateBars(lastCount)
+	else
+		updateBars(1)
+	end
+end
+
+
 local function getBar(category)
 	local cooldownIDs = C_CooldownViewer.GetCooldownViewerCategorySet(category, false)
 	for i, cooldownID in ipairs(cooldownIDs) do
@@ -70,7 +95,8 @@ local function refreshHooks()
 	end
 
 	barFrame = nil
-	local cdID, applications = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
+	applicationsText = nil
+	local cdID = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
 
 	for f in BuffIconCooldownViewer.itemFramePool:EnumerateActive() do
 		if f._Spiritfont then
@@ -81,7 +107,7 @@ local function refreshHooks()
 		end
 		if f.cooldownID == cdID then
 			barFrame = f
-			applications = f.Applications.Applications
+			applicationsText = f.Applications.Applications
 		end
 	end
 
@@ -94,7 +120,7 @@ local function refreshHooks()
 		end
 		if f.cooldownID == cdID then
 			barFrame = f
-			applications = f.Icon.Applications
+			applicationsText = f.Icon.Applications
 		end
 	end
 
@@ -112,29 +138,16 @@ local function refreshHooks()
 	hooksecurefunc(barFrame, "SetAlpha", function(self)
 		setAlpha(self, alpha)
 	end)
-	hooksecurefunc(applications, "SetText", function(self, count)
-		if isEditing then return end
-		local stacks = tonumber(count)
-		if stacks == nil then
-			local auraInstanceID = barFrame:GetAuraSpellInstanceID()
-			if auraInstanceID then
-				local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-				stacks = (auraData and auraData.applications) or 0
-			else
-				stacks = 0
-			end
-		end
-		updateBars(stacks)
+	-- RefreshData writes the applications text before it refreshes the active state, so
+	-- the text hook can only set the count; the UNIT_AURA handler below runs after the
+	-- viewer has finished with the event and settles the 0/1 case from isActive.
+	lastCount = nil
+	hooksecurefunc(applicationsText, "SetText", function(self, count)
+		lastCount = tonumber(count)
+		updateFromViewer()
 	end)
 
-	local stacks = 0
-	local auraInstanceID = barFrame:GetAuraSpellInstanceID()
-	if auraInstanceID then
-		local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-		stacks = auraData and auraData.applications or 0
-	end
-
-	updateBars(stacks)
+	updateFromViewer()
 end
 
 CB.refresh = refreshHooks
@@ -211,18 +224,7 @@ C_Timer.After(0, function()
 
 	local unitAuraFrame = CreateFrame("Frame")
 	unitAuraFrame:RegisterUnitEvent("UNIT_AURA", "player")
-	unitAuraFrame:SetScript("OnEvent", function()
-		if isEditing or not barFrame then return end
-		local stacks = 0
-		local auraInstanceID = barFrame:GetAuraSpellInstanceID()
-		if auraInstanceID then
-			local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-			if auraData then
-				stacks = auraData.applications or 0
-			end
-		end
-		updateBars(stacks)
-	end)
+	unitAuraFrame:SetScript("OnEvent", updateFromViewer)
 
 	local lem = LibStub("LibEditMode")
 	lem:RegisterCallback("layout", function()

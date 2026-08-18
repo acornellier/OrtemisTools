@@ -17,7 +17,7 @@ local iconY = 5
 local dSize = 50
 local iconSize = 32
 local maxStacks = 4
-local bars, barFrame = {}
+local bars, barFrame, applicationsText = {}
 local isEditing = false
 
 for i = 1, maxStacks do
@@ -70,7 +70,8 @@ local function refreshHooks()
 	end
 
 	barFrame = nil
-	local cdID, applications = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
+	applicationsText = nil
+	local cdID = getBar(Enum.CooldownViewerCategory.TrackedBuff) or getBar(Enum.CooldownViewerCategory.TrackedBar)
 
 	for f in BuffIconCooldownViewer.itemFramePool:EnumerateActive() do
 		if f._ChiBalls then
@@ -81,7 +82,7 @@ local function refreshHooks()
 		end
 		if f.cooldownID == cdID then
 			barFrame = f
-			applications = f.Applications.Applications
+			applicationsText = f.Applications.Applications
 		end
 	end
 
@@ -94,7 +95,7 @@ local function refreshHooks()
 		end
 		if f.cooldownID == cdID then
 			barFrame = f
-			applications = f.Icon.Applications
+			applicationsText = f.Icon.Applications
 		end
 	end
 
@@ -112,19 +113,12 @@ local function refreshHooks()
 	hooksecurefunc(barFrame, "SetAlpha", function(self)
 		setAlpha(self, alpha)
 	end)
-	hooksecurefunc(applications, "SetText", function(self, count)
+	hooksecurefunc(applicationsText, "SetText", function(self, count)
 		if isEditing then return end
 		updateBars(tonumber(count) or barFrame:GetAuraSpellInstanceID() and 1 or 0)
 	end)
 
-	local stacks = 0
-	local auraInstanceID = barFrame:GetAuraSpellInstanceID()
-	if auraInstanceID then
-		local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-		stacks = auraData and auraData.applications or 0
-	end
-
-	updateBars(stacks)
+	updateBars(barFrame:GetAuraSpellInstanceID() and 1 or 0)
 end
 
 CB.refresh = refreshHooks
