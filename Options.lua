@@ -232,7 +232,21 @@ end)
 local category = Settings.RegisterCanvasLayoutCategory(optionsFrame, "OrtemisTools")
 Settings.RegisterAddOnCategory(category)
 
+-- Settings.OpenToCategory reaches the protected OpenSettingsPanel, so asking for the
+-- panel in combat is blocked. Hold the request and open it once combat ends instead.
+local pendingOpen = CreateFrame("Frame")
+pendingOpen:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    Settings.OpenToCategory(category:GetID())
+end)
+
 SLASH_ORTEMISTOOLS1 = "/ort"
 SlashCmdList["ORTEMISTOOLS"] = function()
+    if InCombatLockdown() then
+        pendingOpen:RegisterEvent("PLAYER_REGEN_ENABLED")
+        print("|cff00ccffOrtemisTools|r: options will open when you leave combat.")
+        return
+    end
+
     Settings.OpenToCategory(category:GetID())
 end
